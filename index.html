@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Finder</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f5f9;color:#222}
+header{background:#1565c0;color:white;padding:20px;text-align:center}
+header h1{margin:0 0 6px}
+.container{max-width:700px;margin:auto;padding:15px}
+.card{background:white;padding:15px;margin:12px 0;border-radius:12px;box-shadow:0 2px 8px #bbb}
+input,button{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #bbb;font-size:16px}
+button{background:#1565c0;color:white;border:0}
+.edit{background:#ef6c00}.danger{background:#d32f2f}.book{background:#6a1b9a}
+.location{background:#00838f}.pinbtn{background:#455a64}
+.status{display:inline-block;padding:7px 12px;border-radius:20px;color:white;font-weight:bold}
+.green{background:#2e7d32}.red{background:#d32f2f}
+a{color:#1565c0;font-weight:bold}
+</style>
+</head>
+<body>
+<header>
+<h1>🏠 Room Finder</h1>
+<div>किराए का Room आसानी से खोजें</div>
+</header>
+<div class="container">
+<div class="card">
+<h2>🔍 Room खोजें</h2>
+<input id="search" placeholder="Area / Room / Address खोजें" oninput="showRooms">
+</div>
+<div class="card">
+<h2>➕ Room जोड़ें</h2>
+<input id="name" placeholder="Room का नाम">
+<input id="address" placeholder="पूरा Home Address">
+<input id="rent" type="number" placeholder="किराया ₹">
+<input id="phone" type="tel" placeholder="मालिक का Mobile Number">
+<input id="pin" type="password" placeholder="अपना PIN बनाएं">
+<button class="location" onclick="getLocation()">📍 मेरी Location लो</button>
+<input id="lat" type="hidden"><input id="lon" type="hidden">
+<button onclick="addRoom()">➕ Room Save करें</button>
+</div>
+<div id="rooms"></div>
+</div>
+<script>
+let rooms=JSON.parse(localStorage.getItem("rooms")||"[]");
+function saveData(){localStorage.setItem("rooms",JSON.stringify(rooms))}
+function addRoom(){
+let name=document.getElementById("name").value.trim(),address=document.getElementById("address").value.trim(),rent=document.getElementById("rent").value.trim(),phone=document.getElementById("phone").value.trim(),pin=document.getElementById("pin").value.trim(),lat=document.getElementById("lat").value,lon=document.getElementById("lon").value;
+if(!name||!address||!rent||!phone||!pin){alert("कृपया सभी जानकारी भरें!");return}
+if(pin.length<4){alert("PIN कम से कम 4 digit का रखें!");return}
+rooms.push({id:Date.now(),name,address,rent,phone,pin,lat,lon,status:"Available"});
+saveData();
+["name","address","rent","phone","pin","lat","lon"].forEach(id=>document.getElementById(id).value="");
+alert("✅ Room सफलतापूर्वक जोड़ दिया गया!");showRooms()
+}
+function showRooms(){
+let box=document.getElementById("rooms"),search=document.getElementById("search").value.toLowerCase();
+box.innerHTML="<h2>🏠 Rooms</h2>";let found=0;
+rooms.forEach(room=>{
+if(room.name.toLowerCase().includes(search)||room.address.toLowerCase().includes(search)){
+found++;let statusClass=room.status==="Booked"?"red":"green";
+let locationButton=room.lat&&room.lon?`<button class="location" onclick="openLocation(${room.lat},${room.lon})">📍 Home Location देखें</button>`:"";
+box.innerHTML+=`<div class="card"><h2>${room.name}</h2>
+<p>🏠 <b>Address:</b> ${room.address}</p><p>💰 <b>Rent:</b> ₹${room.rent}</p>
+<p>📞 <b>Mobile:</b> <a href="tel:${room.phone}">${room.phone}</a></p>
+<p><span class="status ${statusClass}">${room.status}</span></p>
+<button onclick="callOwner('${room.phone}')">📞 मालिक को Call करें</button>${locationButton}
+<button class="edit" onclick="editRoom(${room.id})">✏️ Edit / Rent बदलें</button>
+<button class="book" onclick="toggleBooking(${room.id})">${room.status==="Booked"?"🟢 Available करें":"🔴 BOOKED करें"}</button>
+<button class="pinbtn" onclick="changePin(${room.id})">🔐 PIN बदलें</button>
+<button class="danger" onclick="deleteRoom(${room.id})">🗑️ Room Delete करें</button></div>`
+}});
+if(found===0)box.innerHTML+=`<div class="card">❌ कोई Room नहीं मिला।</div>`
+}
+function callOwner(phone){window.location.href="tel:"+phone}
+function openLocation(lat,lon){window.open("https://www.google.com/maps?q="+lat+","+lon,"_blank")}
+function getLocation(){
+if(!navigator.geolocation){alert("❌ Location सुविधा उपलब्ध नहीं है।");return}
+navigator.geolocation.getCurrentPosition(p=>{document.getElementById("lat").value=p.coords.latitude;document.getElementById("lon").value=p.coords.longitude;alert("✅ Location मिल गई!")},()=>alert("❌ Location नहीं मिली। मोबाइल की Location/GPS चालू करें।"))
+}
+function verifyPin(room){let entered=prompt("🔐 अपना PIN डालें:");if(entered===null)return false;if(entered!==room.pin){alert("❌ PIN गलत है!");return false}return true}
+function editRoom(id){
+let room=rooms.find(r=>r.id===id);if(!room||!verifyPin(room))return;
+let name=prompt("Room का नाम:",room.name);if(name===null)return;
+let address=prompt("Home Address:",room.address);if(address===null)return;
+let rent=prompt("नया Rent ₹:",room.rent);if(rent===null)return;
+let phone=prompt("Mobile Number:",room.phone);if(phone===null)return;
+room.name=name;room.address=address;room.rent=rent;room.phone=phone;saveData();showRooms();alert("✅ Room की जानकारी सफलतापूर्वक बदल दी गई!")
+}
+function toggleBooking(id){
+let room=rooms.find(r=>r.id===id);if(!room||!verifyPin(room))return;
+room.status=room.status==="Booked"?"Available":"Booked";saveData();showRooms();
+alert(room.status==="Booked"?"🔴 Room BOOKED कर दिया गया!":"🟢 Room फिर से AVAILABLE है!")
+}
+function changePin(id){
+let room=rooms.find(r=>r.id===id);if(!room||!verifyPin(room))return;
+let newPin=prompt("🔐 नया PIN डालें:");if(newPin===null)return;
+if(newPin.length<4){alert("❌ PIN कम से कम 4 digit का रखें!");return}
+room.pin=newPin;saveData();alert("✅ आपका नया PIN सेव हो गया!")
+}
+function deleteRoom(id){
+let room=rooms.find(r=>r.id===id);if(!room||!verifyPin(room))return;
+if(!confirm("क्या आप यह Room हमेशा के लिए Delete करना चाहते हैं?"))return;
+rooms=rooms.filter(r=>r.id!==id);saveData();showRooms();alert("🗑️ Room Delete हो गया!")
+}
+showRooms();
+</script>
+</body>
+</html>
